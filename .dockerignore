@@ -39,3 +39,7 @@ Dockerfile
 .git
 .gitignore
 .npmrc
+.github
+
+
+*/config-sample.js
