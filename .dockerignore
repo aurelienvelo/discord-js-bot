@@ -1,0 +1,41 @@
+# Ignorer les dépendances locales
+node_modules
+npm-debug.log
+yarn-error.log
+pnpm-lock.yaml
+
+# Ignorer les fichiers de log
+*.log
+
+# Ignorer les répertoires de tests
+coverage
+test
+__tests__
+
+# Ignorer les fichiers environnementaux sensibles
+.env
+.env.local
+.env.*.local
+
+# Ignorer les fichiers de configuration de l'éditeur
+.vscode
+.idea
+*.swp
+
+# Ignorer les fichiers de build locaux
+dist
+build
+
+# Ignorer les caches
+.cache
+.next
+.DS_Store
+
+# Docker lui-même
+.dockerignore
+Dockerfile
+
+# Autres fichiers inutiles
+.git
+.gitignore
+.npmrc
