@@ -1,13 +1,15 @@
-const { Client, Collection, GatewayIntentBits, Partials } = require("discord.js");
+const path = require('path');
 const express = require("express");
-const CommandsHandler = require("./handler/CommandsHandler");
 const config = require("../config");
+const { Client, Collection, GatewayIntentBits, Partials } = require("discord.js");
+const CommandsHandler = require("./handler/CommandsHandler");
 const CommandsListener = require("./handler/CommandsListener");
 const ComponentsHandler = require("./handler/ComponentsHandler");
 const ComponentsListener = require("./handler/ComponentsListener");
 const EventsHandler = require("./handler/EventsHandler");
 const { QuickYAML } = require('quick-yaml.db');
 const { handleWebhook } = require('../webhooks');
+const TranslationManager = require('../utils/translationManager');
 const OverseerrService = require("../services/overseerr");
 const RadarrService = require('../services/radarr');
 const SonarrService = require('../services/sonarr');
@@ -67,6 +69,18 @@ class DiscordBot extends Client {
 
         this.logger = logger;
 
+        this.translator = new TranslationManager({
+            defaultLocale: 'fr',
+            fallbackLocale: 'en',
+            translationsDir: path.join(path.dirname(__dirname), '/translations'),
+            cacheEnabled: true,
+            autoReload: true, // Rechargement automatique des fichiers
+            logMissingTranslations: true,
+            strictMode: false, // true pour lever des erreurs sur les traductions manquantes
+            caseSensitive: true,
+            logger: this.logger, // Logger personnalisé
+        });
+
         // Configuration du serveur webhook
         this.webhookServer = express();
         this.webhookServer.use(express.json());
@@ -124,6 +138,7 @@ class DiscordBot extends Client {
             this.events_handler.load();
             this.startStatusRotation();
             this.startWebhookServer();
+            this.translator.preloadCache('fr');
 
             this.logger.warn('Attempting to register application commands... (this might take a while!)');
             await this.commands_handler.registerApplicationCommands(config.development);

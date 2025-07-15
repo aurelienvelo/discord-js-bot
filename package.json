@@ -4,31 +4,43 @@
   "description": "A Discord bot commands, components and events handler based on discord.js v14 and fully written in JavaScript.",
   "main": "src/index.js",
   "scripts": {
-    "dev": "nodemon . | pino-pretty -i pid,hostname -t 'yyyy-mm-dd HH:MM:ss'",
+    "dev": "nodemon .",
     "lint": "eslint .",
     "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "node ."
+    "start": "node .",
+    "translation:validate": "node app.js validate",
+    "translation:generate": "node app.js generate-template",
+    "translation:stats": "node app.js stats",
+    "translation:missing": "node app.js missing",
+    "translation:report": "node app.js report", 
+    "translation:ci": "node app.js ci-validate",
+    "translation:maintenance": "node app.js maintenance",
+    "translation:watch": "nodemon --watch translations --exec 'npm run translation:validate'",
+    "translation:deploy": "node scripts/deploy-translations.js"
   },
   "keywords": [],
   "author": "KernelGhost",
   "license": "GPL-3.0",
   "dependencies": {
-    "axios": "^1.7.9",
+    "axios": "^1.10.0",
     "colors": "^1.4.0",
     "dayjs": "^1.11.13",
-    "discord.js": "^14.17.0",
-    "dotenv": "^16.4.5",
-    "express": "^4.21.2",
-    "pino": "^7.0.0-rc.9",
+    "discord.js": "^14.20.0",
+    "dotenv": "^16.5.0",
+    "express": "^5.1.0",
+    "pino": "^9.7.0",
     "pino-pretty": "^13.0.0",
     "quick-yaml.db": "^1.2.2"
   },
   "devDependencies": {
-    "nodemon": "^3.1.9"
+    "nodemon": "^3.1.10"
   },
   "nodemonConfig": {
-    "ignore": ["**/node_modules/**", "**/docs/**", "**/.github/**"],
+    "ignore": [
+      "**/node_modules/**",
+      "**/docs/**",
+      "**/.github/**"
+    ],
     "delay": 2500
   }
-  
 }

@@ -1,0 +1,40 @@
+{
+  "overseerr": {
+    "media_request_status": {
+      "0": "Unknown",
+      "1": "Pending Approval",
+      "2": "Approved",
+      "3": "Declined"
+    },
+    "media_info_status": {
+      "1": "Unknown",
+      "2": "Pending",
+      "3": "Processing",
+      "4": "Partially Available",
+      "5": "Available"
+    },
+    "media_status": {
+      "PENDING": "Pending",
+      "AVAILABLE": "Available"
+    },
+    "event": {
+      "Movie Request Now Available": "Movie Request Now Available",
+      "Series Request Now Available": "Series Request Now Available",
+      "Movie Request Automatically Approved": "Movie Request Automatically Approved",
+      "Series Request Automatically Approved": "Series Request Automatically Approved"
+    }
+  },
+  "radarr": {
+    "quality": {
+      "HD-1080p": "High Definition (1080p)",
+      "HD-720p": "High Definition (720p)",
+      "SD": "Standard Definition"
+    }
+  },
+  "sonarr": {
+    "status": {
+      "continuing": "Series is continuing",
+      "ended": "Series has ended"
+    }
+  }
+}

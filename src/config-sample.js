@@ -1,6 +1,6 @@
 const config = {
     database: {
-        path: './database.yml' // The database path.
+        path: process.env.DATABASEDIR + '/database.yml' || './database.yml' // The database path.
     },
     development: {
         enabled: true, // If true, the bot will register all application commands to a specific guild (not globally).
@@ -15,9 +15,26 @@ const config = {
             message_context: true // If true, the bot will allow users to use message context menu commands.
         }
     },
+    guild: {
+        admin: "" // ID du serveur d'administration du bot
+    },
     users: {
         ownerId: '', // The bot owner ID, which is you.
         developers: [''] // The bot developers, remember to include your account ID with the other account IDs.
+    },
+    roles: {
+        admin: '', // The role ID for the bot admin, which is you.
+        moderator: '', // The role ID for the bot moderator
+    },
+    channels: {
+        notifications: "", // Canal principal pour les notifications
+        default: "",       // Canal par défaut (peut être le même)
+        logger: {
+            enabled: true, // If true, the bot will log errors to Discord.
+            errorChannelId: "DEFAULT_ERROR_CHANNEL_ID", // The channel ID where errors will be logged.
+            infoChannelId: "DEFAULT_INFO_CHANNEL_ID", // The channel ID where info logs will be sent.
+            debugChannelId: "DEFAULT_DEBUG_CHANNEL_ID" // The channel ID where debug logs will be sent.
+        },
     },
     messages: { // Messages configuration for application commands and message commands handler.
         NOT_BOT_OWNER: 'Vous n\'avez pas la permission d\'exécuter cette commande car vous n\'êtes pas mon propriétaire !',
@@ -40,52 +57,25 @@ const config = {
         sonarr: {
             url: process.env.SONARR_URL || "http://localhost:55757",
             token: process.env.SONARR_TOKEN || "",
+        },
+        tdarr: {
+            url: process.env.TDARR_URL || "http://localhost:8265",
+            token: process.env.TDARR_TOKEN || "",
+            notifications: {
+                file_processed: true,     // Succès important
+                file_processing: false,   // Évite le spam
+                file_error: true,         // Erreurs importantes
+                file_skipped: false,      // Généralement pas crucial
+                worker_started: false,    // Info système
+                worker_stopped: true,     // Peut indiquer un problème
+                library_scan_complete: true,
+                health_check: false,
+            }
+        },
+        plex: {
+            url: process.env.PLEX_URL || "http://localhost:32400",
+            token: process.env.PLEX_TOKEN || "", // Plex token for authentication
         }
-    },
-    webhookChannels: {
-        alert: "ID_CANAL_ALERT", // The ID CANAL for ALERT
-        notification: "ID_CANAL_NOTIFICATION", // The ID CANAL for NOTIFICATION
-        overseerr: {
-            admin: "",
-            channelMapping: {
-                TEST_NOTIFICATION: {
-                    '': "",
-                },
-                MEDIA_AUTO_APPROVED: {
-                    'Movie Request Automatically Approved': '', // canal activité
-                    'Series Request Automatically Approved': ''
-                },
-                MEDIA_PENDING: {
-                    'event_1': '',
-                    'event_2': ''
-                },
-                MEDIA_AVAILABLE: {
-                    'Movie Request Now Available': '',
-                    'Series Request Now Available': ''
-                },
-                ISSUE_COMMENT: {
-                    'event_3': 'CHANNEL_ID_3'
-                },
-            },
-        },
-        radarr: {
-            admin: "",
-            channelMapping: {
-                Radarr: {
-                    'Test': "",
-                    'MovieFileDelete': "",
-                },
-            },
-        },
-        sonarr: {
-            admin: "",
-            channelMapping: {
-                Sonarr: {
-                    'Test': "",
-                },
-            },
-        },
-        tdarr: "", // The ID CANAL for tdarr app
     },
 }
 
