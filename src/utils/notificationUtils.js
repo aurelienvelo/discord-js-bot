@@ -1,137 +1,125 @@
+const { AttachmentBuilder } = require('discord.js');
 const config = require('../config');
 
-/**
- * Fonction pour envoyer des notifications à tous les canaux associés + canal par défaut
- * @param {DiscordBot} client - Instance du bot Discord
- * @param {string} source - La source (ex: "github", "twitter")
- * @param {Object} message - L'embed à envoyer
- * @param {Object} options - Options supplémentaires
- */
-async function sendNotificationToAll(client, source, message, options = {}) {
-    const results = {
-        success: [],
-        failed: [],
-        totalSent: 0
-    };
-
-    // 1. Envoi vers tous les serveurs associés à cette source
-    const associations = client.database.get(`webhook-${source}`) || {};
-
-    for (const [guildId, data] of Object.entries(associations)) {
+class NotificationService {
+    /**
+     * Envoie le JSON brut pour le debug (Serveur Admin)
+     * Utilise une récupération robuste (Cache + Fetch)
+     */
+    static async sendRawLog(client, source, payload) {
         try {
-            const guild = client.guilds.cache.get(guildId);
-            if (!guild) {
-                results.failed.push(`Serveur ${data.guildName} (${guildId}) introuvable`);
-                continue;
+            const adminGuildId = config.guild.admin;
+            const logChannelId = config.channels.debug;
+
+            if (!logChannelId) return;
+
+            // 1. Récupération robuste de la Guild Admin
+            let adminGuild = client.guilds.cache.get(adminGuildId) 
+                || await client.guilds.fetch(adminGuildId).catch(() => null);
+
+            if (!adminGuild) {
+                return client.logger.error(`[DebugLog] Serveur admin introuvable (${adminGuildId})`);
             }
 
-            const channel = guild.channels.cache.get(data.channelId);
-            if (!channel) {
-                results.failed.push(`Canal ${data.channelName} sur ${data.guildName} introuvable`);
-                continue;
+            // 2. Récupération robuste du Canal de Log
+            let logChannel = adminGuild.channels.cache.get(logChannelId)
+                || await adminGuild.channels.fetch(logChannelId).catch(() => null);
+
+            if (!logChannel) {
+                return client.logger.error(`[DebugLog] Canal debug introuvable (${logChannelId})`);
             }
 
-            // Envoi du message original (sans info admin)
-            await channel.send({ embeds: [message] });
-            results.success.push(`${data.guildName} - #${data.channelName}`);
-            results.totalSent++;
+            // 3. Préparation et envoi du fichier
+            const buffer = Buffer.from(JSON.stringify(payload, null, 2));
+            const attachment = new AttachmentBuilder(buffer, { 
+                name: `debug_${source}_${Date.now()}.json` 
+            });
+
+            await logChannel.send({
+                content: `🛠️ **Debug Payload** | Source: \`${source.toUpperCase()}\` | <t:${Math.floor(Date.now() / 1000)}:f>`,
+                files: [attachment]
+            });
 
         } catch (error) {
-            results.failed.push(`Erreur sur ${data.guildName}: ${error.message}`);
+            client.logger.error(`Erreur critique dans sendRawLog: ${error.message}`);
         }
     }
 
-    // 2. Envoi vers le canal par défaut du serveur d'administration
-    try {
-        const adminGuildId = config.guild.admin;
-        const defaultChannelId = config.channels.notifications || config.channels.default;
+    /**
+     * Envoi global vers tous les serveurs abonnés
+     */
+    static async sendNotificationToAll(client, source, embedData, payload = null, options = {}) {
+        const results = { success: [], failed: [], totalSent: 0 };
 
-        const adminGuild = client.guilds.cache.get(adminGuildId);
-        if (adminGuild) {
-            const defaultChannel = adminGuild.channels.cache.get(defaultChannelId);
-            if (defaultChannel) {
-                // Créer l'embed admin avec les informations supplémentaires
-                const adminMessage = options.includeAdminInfo ? {
-                    ...message, // Copier l'embed original
-                    footer: {
-                        text: `[${source.toUpperCase()}] Notification envoyée à ${results.totalSent} serveur(s)`,
-                        // Si l'embed original a déjà un footer, on le combine
-                        ...(message.footer && {
-                            text: `${message.footer.text} • [${source.toUpperCase()}] Notification envoyée à ${results.totalSent} serveur(s)`
-                        })
-                    },
-                    // Optionnel: ajouter un timestamp
-                    timestamp: new Date().toISOString()
-                } : message;
+        // 1. Log du JSON brut en priorité
+        if (payload) {
+            await this.sendRawLog(client, source, payload);
+        }
 
-                await defaultChannel.send({ embeds: [adminMessage] });
-                results.success.push(`Serveur Admin - Canal par défaut`);
+        // 2. Récupération des associations depuis la DB
+        const associations = client.settings.getWebhookSource(source) || {};
+
+        for (const [guildId, data] of Object.entries(associations)) {
+            try {
+                const guild = client.guilds.cache.get(guildId);
+                // Note: Pour le broadcast massif, on reste sur le cache pour éviter les Rate Limits
+                const channel = guild?.channels.cache.get(data.channelId);
+
+                if (!channel) {
+                    results.failed.push(`${data.guildName || guildId}: Canal/Serveur non accessible (Cache)`);
+                    continue;
+                }
+
+                await channel.send({ embeds: [embedData] });
+                results.success.push(`${data.guildName} - #${data.channelName}`);
                 results.totalSent++;
-            } else {
-                results.failed.push(`Canal par défaut du serveur admin introuvable`);
+
+            } catch (error) {
+                results.failed.push(`${data.guildName || guildId}: ${error.message}`);
             }
-        } else {
-            results.failed.push(`Serveur d'administration introuvable`);
         }
-    } catch (error) {
-        results.failed.push(`Erreur serveur admin: ${error.message}`);
+
+        // 3. Notification récapitulative pour les Admins
+        await this.sendToAdmin(client, source, embedData, results.totalSent, options.includeAdminInfo);
+
+        return results;
     }
 
-    return results;
-}
+    /**
+     * Envoie l'embed au canal de notification admin (Cache + Fetch)
+     */
+    static async sendToAdmin(client, source, embedData, totalSent, includeInfo = true) {
+        try {
+            const adminGuildId = config.guild.admin;
+            const adminChannelId = config.channels.notifications || config.channels.default;
 
-/**
- * Fonction simplifiée pour l'envoi rapide
- * @param {DiscordBot} client - Instance du bot Discord
- * @param {string} source - La source
- * @param {Object} message - L'embed à envoyer
- */
-async function sendNotification(client, source, message) {
-    return await sendNotificationToAll(client, source, message, { includeAdminInfo: true });
-}
+            let adminGuild = client.guilds.cache.get(adminGuildId) 
+                || await client.guilds.fetch(adminGuildId).catch(() => null);
 
-/**
- * Fonction pour envoyer uniquement vers le canal par défaut (fallback)
- * @param {DiscordBot} client - Instance du bot Discord
- * @param {string} source - La source
- * @param {Object} message - L'embed à envoyer
- */
-async function sendToDefaultChannel(client, source, message) {
-    try {
-        const adminGuildId = config.guild.admin;
-        const defaultChannelId = config.channels.notifications || config.channels.default;
+            if (!adminGuild) return;
 
-        const adminGuild = client.guilds.cache.get(adminGuildId);
-        if (!adminGuild) {
-            throw new Error('Serveur d\'administration introuvable');
-        }
+            let channel = adminGuild.channels.cache.get(adminChannelId)
+                || await adminGuild.channels.fetch(adminChannelId).catch(() => null);
 
-        const defaultChannel = adminGuild.channels.cache.get(defaultChannelId);
-        if (!defaultChannel) {
-            throw new Error('Canal par défaut introuvable');
-        }
+            if (!channel) return;
 
-        // Créer un embed avec l'information de source
-        const adminEmbed = {
-            ...message,
-            footer: {
-                text: `[${source.toUpperCase()}]`,
-                ...(message.footer && {
-                    text: `${message.footer.text} • [${source.toUpperCase()}]`
-                })
+            // Clone l'embed pour ne pas modifier l'original envoyé aux autres serveurs
+            const adminEmbed = { ...embedData };
+
+            if (includeInfo) {
+                const footerText = `[${source.toUpperCase()}] Diffusion : ${totalSent} serveur(s)`;
+                adminEmbed.footer = {
+                    text: embedData.footer?.text ? `${embedData.footer.text} • ${footerText}` : footerText,
+                    icon_url: embedData.footer?.icon_url
+                };
             }
-        };
 
-        await defaultChannel.send({ embeds: [adminEmbed] });
+            await channel.send({ embeds: [adminEmbed] });
 
-        return { success: true, channel: defaultChannel.name };
-    } catch (error) {
-        return { success: false, error: error.message };
+        } catch (e) {
+            client.logger.error(`Erreur sendToAdmin: ${e.message}`);
+        }
     }
 }
 
-module.exports = {
-    sendNotificationToAll,
-    sendNotification,
-    sendToDefaultChannel,
-};
+module.exports = NotificationService;

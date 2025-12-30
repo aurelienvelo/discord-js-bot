@@ -1,7 +1,6 @@
 const { Message, MessageFlags } = require("discord.js");
 const MessageCommand = require("../../structure/MessageCommand");
 const ApplicationCommand = require("../../structure/ApplicationCommand");
-const config = require("../../config");
 
 const application_commands_cooldown = new Map();
 const message_commands_cooldown = new Map();
@@ -14,37 +13,36 @@ const message_commands_cooldown = new Map();
  * @returns {boolean}
  */
 const handleApplicationCommandOptions = async (interaction, options, command) => {
-    if (options.botOwner) {
-        if (interaction.user.id !== config.users.ownerId) {
-            await interaction.reply({
-                content: config.messages.NOT_BOT_OWNER,
-                flags: MessageFlags.Ephemeral
-            });
+    const config = interaction.client.config;
+    const userId = interaction.user.id;
+    const isOwner = userId === config.client.ownerId;
+    const isDeveloper = config.client.developers.includes(userId);
 
-            return false;
-        }
+    // 1. Permission Propriétaire
+    if (options.botOwner && !isOwner) {
+        await interaction.reply({
+            content: interaction.client.translator.translate('messages.NOT_BOT_OWNER', {}, interaction.locale),
+            flags: MessageFlags.Ephemeral
+        });
+        return false;
     }
 
-    if (options.botDevelopers) {
-        if (config.users?.developers?.length > 0 && !config.users?.developers?.includes(interaction.user.id)) {
-            await interaction.reply({
-                content: config.messages.NOT_BOT_DEVELOPER,
-                flags: MessageFlags.Ephemeral
-            });
-
-            return false;
-        }
+    // 2. Permission Développeurs (Le owner passe car il est dans la liste)
+    if (options.botDevelopers && !isDeveloper) {
+        await interaction.reply({
+            content: interaction.client.translator.translate('messages.NOT_BOT_DEVELOPER', {}, interaction.locale),
+            flags: MessageFlags.Ephemeral
+        });
+        return false;
     }
 
-    if (options.guildOwner) {
-        if (interaction.user.id !== interaction.guild.ownerId) {
-            await interaction.reply({
-                content: config.messages.NOT_GUILD_OWNER,
-                flags: MessageFlags.Ephemeral
-            });
-
-            return false;
-        }
+    // 3. Permission Guild Owner (Le bot owner peut optionnellement bypasser ici aussi)
+    if (options.guildOwner && userId !== interaction.guild.ownerId && !isOwner) {
+        await interaction.reply({
+            content: interaction.client.translator.translate('messages.NOT_GUILD_OWNER', {}, interaction.locale),
+            flags: MessageFlags.Ephemeral
+        });
+        return false;
     }
 
     if (options.cooldown) {

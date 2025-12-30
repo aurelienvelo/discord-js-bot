@@ -1,5 +1,3 @@
-const config = require("../config");
-
 class OverseerrHandler {
     constructor() {}
 
@@ -59,7 +57,7 @@ class OverseerrHandler {
         if (media?.status) {
             fields.push({
                 name: 'État de la demande',
-                value: this.translator.translate('overseerr', 'media_status', media.status),
+                value: this.translator.translate(`overseerr.media_request_status.${media.status}`, {}, 'fr'),
                 inline: true,
             });
         }
@@ -156,7 +154,7 @@ class OverseerrHandler {
             // Construction de l'embed
             const embed = {
                 author: { 
-                    name: this.translator.translate('overseerr', 'event', event || notification_type) 
+                    name: this.translator.translate(`overseerr.event.${event || notification_type}`, {}, 'fr') 
                 },
                 title: mediaInfo.title,
                 description: mediaInfo.description,

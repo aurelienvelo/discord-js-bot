@@ -1,7 +1,6 @@
 const { Message } = require("discord.js");
 const DiscordBot = require("../../client/DiscordBot");
 const MessageCommand = require("../../structure/MessageCommand");
-const config = require("../../config");
 
 module.exports = new MessageCommand({
     command: {
@@ -19,8 +18,14 @@ module.exports = new MessageCommand({
      * @param {string[]} args
      */
     run: async (client, message, args) => {
+        const prefix = client.settings.getPrefix(message.guild.id);
+        
+        const commandList = client.collection.message_commands
+            .map((cmd) => `\`${prefix}${cmd.command.name}\``)
+            .join(', ');
+
         await message.reply({
-            content: `${client.collection.message_commands.map((cmd) => '\`' + client.database.ensure('prefix-' + message.guild.id, config.commands.prefix) + cmd.command.name + '\`').join(', ')}`
+            content: `Mes commandes sur ce serveur : ${commandList}`
         });
     }
 }).toJSON();

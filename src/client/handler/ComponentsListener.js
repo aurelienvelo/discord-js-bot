@@ -1,6 +1,5 @@
 const { MessageFlags } = require("discord.js");
 const DiscordBot = require("../DiscordBot");
-const config = require("../../config");
 
 class ComponentsListener {
     /**
@@ -12,7 +11,7 @@ class ComponentsListener {
             const checkUserPermissions = async (component) => {
                 if (component.options?.public === false && interaction.user.id !== interaction.message.interaction.user.id) {
                     await interaction.reply({
-                        content: config.messages.COMPONENT_NOT_PUBLIC,
+                        content: client.translator.translate("messages.COMPONENT_NOT_PUBLIC", {}, interaction.locale) || "❌ You cannot use this component.",
                         flags: MessageFlags.Ephemeral
                     });
 

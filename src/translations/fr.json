@@ -36,5 +36,14 @@
       "continuing": "La série est en cours",
       "ended": "La série est terminée"
     }
+  },
+  "messages": {
+    "NOT_BOT_OWNER": "Vous n'avez pas la permission d'exécuter cette commande car vous n'êtes pas mon propriétaire !",
+    "NOT_BOT_DEVELOPER": "Vous n'avez pas la permission d'exécuter cette commande car vous n'êtes pas l'un de mes développeurs !",
+    "NOT_GUILD_OWNER": "Vous n'avez pas la permission d'exécuter cette commande car vous n'êtes pas le propriétaire du serveur !",
+    "CHANNEL_NOT_NSFW": "Vous ne pouvez pas exécuter cette commande dans un canal non-NSFW !",
+    "MISSING_PERMISSIONS": "Vous n'avez pas la permission d'exécuter cette commande, permissions manquantes.",
+    "COMPONENT_NOT_PUBLIC": "Vous n'êtes pas l'auteur de ce bouton !",
+    "GUILD_COOLDOWN": "Vous êtes actuellement en période de cooldown, vous pourrez réutiliser cette commande dans %cooldown%s."
   }
 }

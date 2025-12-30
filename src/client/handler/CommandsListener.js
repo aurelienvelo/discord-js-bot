@@ -1,6 +1,5 @@
 const { PermissionsBitField, ChannelType, MessageFlags } = require("discord.js");
 const DiscordBot = require("../DiscordBot");
-const config = require("../../config");
 const MessageCommand = require("../../structure/MessageCommand");
 const { handleMessageCommandOptions, handleApplicationCommandOptions } = require("./CommandOptions");
 const ApplicationCommand = require("../../structure/ApplicationCommand");
@@ -14,13 +13,11 @@ class CommandsListener {
         client.on('messageCreate', async (message) => {
             if (message.author.bot || message.channel.type === ChannelType.DM) return;
 
+            const config = message.client.config;
+
             if (!config.commands.message_commands) return;
 
-            let prefix = config.commands.prefix;
-
-            if (client.database.has('prefix-' + message.guild.id)) {
-                prefix = client.database.get('prefix-' + message.guild.id);
-            }
+            const prefix = client.settings.getPrefix(message.guild.id);
 
             if (!message.content.startsWith(prefix)) return;
 
@@ -47,7 +44,7 @@ class CommandsListener {
 
                 if (command.command?.permissions && !message.member.permissions.has(PermissionsBitField.resolve(command.command.permissions))) {
                     await message.reply({
-                        content: config.messages.MISSING_PERMISSIONS,
+                        content: client.translator.translate('messages.MISSING_PERMISSIONS', {}, message.locale) || "❌ You don't have the required permissions to use this command.",
                         flags: MessageFlags.Ephemeral
                     });
 
@@ -62,6 +59,8 @@ class CommandsListener {
 
         client.on('interactionCreate', async (interaction) => {
             if (!interaction.isCommand()) return;
+
+            const config = interaction.client.config;
 
             if (!config.commands.application_commands.chat_input && interaction.isChatInputCommand()) return;
             if (!config.commands.application_commands.user_context && interaction.isUserContextMenuCommand()) return;
@@ -83,7 +82,7 @@ class CommandsListener {
 
                 command.run(client, interaction);
             } catch (err) {
-                error(err);
+                client.logger.error(err);
             }
         });
     }

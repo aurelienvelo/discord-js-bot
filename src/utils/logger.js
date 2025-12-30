@@ -1,5 +1,4 @@
 const { EmbedBuilder } = require("discord.js");
-const config = require("../config");
 const pino = require('pino');
 
 const baseLogger = pino({
@@ -41,8 +40,14 @@ const logger = {
       .setTimestamp();
 
     try {
-      if (config.channels.logger.enabled) {
-        const channel = await discordClient.channels.fetch(config.channels.logger.errorChannelId);
+      if (discordClient.config.channels.logger.enabled) {
+        const channel = await discordClient.channel.cache.get(discordClient.config.channels.logger.errorChannelId)
+        if (!channel) {
+          await discordClient.channels.fetch(discordClient.config.channels.logger.errorChannelId);
+        }
+        if (!channel) {
+          return baseLogger.warn('Canal de log des erreurs introuvable');
+        }
         await channel.send({ embeds: [embed] });
       }
     } catch (e) {

@@ -1,5 +1,3 @@
-const config = require("../config");
-
 class TdarrHandler {
     constructor() {}
 
@@ -258,7 +256,7 @@ class TdarrHandler {
             const { event } = payload;
 
             // Vérification si la notification doit être envoyée
-            if (!this.shouldSendNotification(event, config.apis?.tdarr?.notifications)) {
+            if (!this.shouldSendNotification(event, client.config.apis?.tdarr?.notifications)) {
                 client.logger.debug(`Notification Tdarr ignorée pour l'événement: ${event}`);
                 return null;
             }
@@ -276,7 +274,7 @@ class TdarrHandler {
             // Construction de l'embed
             const embed = {
                 author: { 
-                    name: `${icon} ${this.translator.translate('tdarr', 'event', event) || event.replace('_', ' ').toUpperCase()}`
+                    name: `${icon} ${this.translator.translate(`tdarr.event.${event}`, {}, 'fr') || event.replace('_', ' ').toUpperCase()}`
                 },
                 title: fileInfo.title,
                 description: fileInfo.description,

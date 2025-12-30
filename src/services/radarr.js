@@ -1,11 +1,10 @@
 const ApiService = require("./apiService");
-const config = require("../config");
 
 class RadarrService extends ApiService {
-    constructor() {
-        super(config.apis.radarr.url, {
+    constructor(config) {
+        super(config.url, {
             "Content-Type": "application/json",
-            "X-Api-Key": config.apis.radarr.token
+            "X-Api-Key": config.token
         });
     }
 

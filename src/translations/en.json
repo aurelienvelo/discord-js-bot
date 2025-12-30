@@ -36,5 +36,14 @@
       "continuing": "Series is continuing",
       "ended": "Series has ended"
     }
+  },
+  "messages": {
+    "NOT_BOT_OWNER": "You do not have permission to run this command because you are not my owner!",
+    "NOT_BOT_DEVELOPER": "You do not have permission to run this command because you are not one of my developers!",
+    "NOT_GUILD_OWNER": "You do not have permission to run this command because you are not the server owner!",
+    "CHANNEL_NOT_NSFW": "You cannot run this command in a non-NSFW channel!",
+    "MISSING_PERMISSIONS": "You do not have permission to run this command, missing required permissions.",
+    "COMPONENT_NOT_PUBLIC": "You are not the author of this button!",
+    "GUILD_COOLDOWN": "You are currently on cooldown, you will be able to use this command again in %cooldown%s."
   }
 }

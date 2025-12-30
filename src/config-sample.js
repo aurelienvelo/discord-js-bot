@@ -1,82 +1,53 @@
-const config = {
-    database: {
-        path: process.env.DATABASEDIR + '/database.yml' || './database.yml' // The database path.
-    },
-    development: {
-        enabled: true, // If true, the bot will register all application commands to a specific guild (not globally).
-        guildId: '',
+require('dotenv').config();
+
+const ownerId = process.env.OWNER_ID;
+const rawDevs = (process.env.DEVELOPER_IDS || '').split(',');
+
+// On crée un tableau propre :
+// 1. On ajoute le ownerId au début
+// 2. On ajoute les autres devs
+// 3. On filtre les chaînes vides et on retire les doublons avec Set
+const developersList = [...new Set([ownerId, ...rawDevs])]
+    .map(id => id.trim())
+    .filter(id => id.length > 0);
+
+module.exports = {
+    client: {
+        token: process.env.CLIENT_TOKEN,
+        ownerId: ownerId,
+        developers: developersList, // Contient le owner + les autres devs
     },
     commands: {
-        prefix: '?', // For message commands, prefix is required. This can be changed by a database.
-        message_commands: true, // If true, the bot will allow users to use message (or prefix) commands.
+        prefix: process.env.COMMAND_PREFIX || '?', 
+        message_commands: process.env.ENABLE_MESSAGE_COMMANDS === 'true',
         application_commands: {
-            chat_input: true, // If true, the bot will allow users to use chat input (or slash) commands.
-            user_context: true, // If true, the bot will allow users to use user context menu commands.
-            message_context: true // If true, the bot will allow users to use message context menu commands.
+            chat_input: process.env.ENABLE_CHAT_INPUT_COMMANDS === 'true', 
+            user_context: process.env.ENABLE_USER_CONTEXT_COMMANDS === 'true',
+            message_context: process.env.ENABLE_MESSAGE_CONTEXT_COMMANDS === 'true'
         }
     },
+    database_path: process.env.DATABASE_PATH || './database.yml',
     guild: {
-        admin: "" // ID du serveur d'administration du bot
-    },
-    users: {
-        ownerId: '', // The bot owner ID, which is you.
-        developers: [''] // The bot developers, remember to include your account ID with the other account IDs.
+        admin: process.env.ADMIN_GUILD_ID, // ID du serveur d'administration du bot
     },
     roles: {
-        admin: '', // The role ID for the bot admin, which is you.
-        moderator: '', // The role ID for the bot moderator
+        admin: process.env.ROLE_ADMIN,
     },
     channels: {
-        notifications: "", // Canal principal pour les notifications
-        default: "",       // Canal par défaut (peut être le même)
-        logger: {
-            enabled: true, // If true, the bot will log errors to Discord.
-            errorChannelId: "DEFAULT_ERROR_CHANNEL_ID", // The channel ID where errors will be logged.
-            infoChannelId: "DEFAULT_INFO_CHANNEL_ID", // The channel ID where info logs will be sent.
-            debugChannelId: "DEFAULT_DEBUG_CHANNEL_ID" // The channel ID where debug logs will be sent.
-        },
-    },
-    messages: { // Messages configuration for application commands and message commands handler.
-        NOT_BOT_OWNER: 'Vous n\'avez pas la permission d\'exécuter cette commande car vous n\'êtes pas mon propriétaire !',
-        NOT_BOT_DEVELOPER: 'Vous n\'avez pas la permission d\'exécuter cette commande car vous n\'êtes pas l\'un de mes développeurs !',
-        NOT_GUILD_OWNER: 'Vous n\'avez pas la permission d\'exécuter cette commande car vous n\'êtes pas le propriétaire du serveur !',
-        CHANNEL_NOT_NSFW: 'Vous ne pouvez pas exécuter cette commande dans un canal non-NSFW !',
-        MISSING_PERMISSIONS: 'Vous n\'avez pas la permission d\'exécuter cette commande, permissions manquantes.',
-        COMPONENT_NOT_PUBLIC: 'Vous n\'êtes pas l\'auteur de ce bouton !',
-        GUILD_COOLDOWN: 'Vous êtes actuellement en période de cooldown, vous pourrez réutiliser cette commande dans \`%cooldown%s\`.'
+        notifications: process.env.CHANNEL_NOTIFICATIONS,
+        debug: process.env.CHANNEL_DEBUG,
+        errors: process.env.CHANNEL_ERRORS,
     },
     apis: {
-        overseerr: {
-            url: process.env.OVERSEERR_URL || "http:///localhost:5055",
-            token: process.env.OVERSEERR_TOKEN || "",
-        },
-        radarr: {
-            url: process.env.RADARR_URL || "http://localhost:7878",
-            token: process.env.RADARR_TOKEN || "",
-        },
-        sonarr: {
-            url: process.env.SONARR_URL || "http://localhost:55757",
-            token: process.env.SONARR_TOKEN || "",
-        },
-        tdarr: {
-            url: process.env.TDARR_URL || "http://localhost:8265",
-            token: process.env.TDARR_TOKEN || "",
-            notifications: {
-                file_processed: true,     // Succès important
-                file_processing: false,   // Évite le spam
-                file_error: true,         // Erreurs importantes
-                file_skipped: false,      // Généralement pas crucial
-                worker_started: false,    // Info système
-                worker_stopped: true,     // Peut indiquer un problème
-                library_scan_complete: true,
-                health_check: false,
-            }
-        },
-        plex: {
-            url: process.env.PLEX_URL || "http://localhost:32400",
-            token: process.env.PLEX_TOKEN || "", // Plex token for authentication
-        }
+        overseerr: { url: process.env.OVERSEERR_URL, token: process.env.OVERSEERR_TOKEN },
+        radarr: { url: process.env.RADARR_URL, token: process.env.RADARR_TOKEN },
+        sonarr: { url: process.env.SONARR_URL, token: process.env.SONARR_TOKEN },
+        tdarr: { url: process.env.TDARR_URL, token: process.env.TDARR_TOKEN },
+        // ...
     },
-}
-
-module.exports = config;
+    // On garde ici uniquement les paramètres de comportement, pas les IDs
+    development: {
+        enabled: process.env.NODE_ENV !== 'production',
+        guildId: process.env.ADMIN_GUILD_ID,
+    }
+};

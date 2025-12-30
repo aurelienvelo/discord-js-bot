@@ -1,7 +1,7 @@
 const path = require('path');
 const express = require("express");
 const config = require("../config");
-const { Client, Collection, GatewayIntentBits, Partials } = require("discord.js");
+const { Client, Collection, GatewayIntentBits, Partials, Options } = require("discord.js");
 const CommandsHandler = require("./handler/CommandsHandler");
 const CommandsListener = require("./handler/CommandsListener");
 const ComponentsHandler = require("./handler/ComponentsHandler");
@@ -10,6 +10,7 @@ const EventsHandler = require("./handler/EventsHandler");
 const { QuickYAML } = require('quick-yaml.db');
 const { handleWebhook } = require('../webhooks');
 const TranslationManager = require('../utils/translationManager');
+const SettingsManager = require('../utils/settingsManager');
 const OverseerrService = require("../services/overseerr");
 const RadarrService = require('../services/radarr');
 const SonarrService = require('../services/sonarr');
@@ -30,24 +31,21 @@ class DiscordBot extends Client {
     rest_application_commands_array = [];
     login_attempts = 0;
     login_timestamp = 0;
-    statusMessages = [
-        { name: 'Status 1', type: 4 },
-        { name: 'Status 2', type: 4 },
-        { name: 'Status 3', type: 4 }
-    ];
+    statusMessages = [];
 
     commands_handler = new CommandsHandler(this);
     components_handler = new ComponentsHandler(this);
     events_handler = new EventsHandler(this);
-    database = new QuickYAML(config.database.path);
 
     constructor() {
         super({
+            // 1. Intents : On garde le strict nécessaire
             intents: [
                 GatewayIntentBits.Guilds,
                 GatewayIntentBits.GuildMessages,
                 GatewayIntentBits.MessageContent,
             ],
+            // 2. Partials : Permet de traiter des événements sur des objets non castés
             partials: [
                 Partials.Channel,
                 Partials.GuildMember,
@@ -55,6 +53,30 @@ class DiscordBot extends Client {
                 Partials.Reaction,
                 Partials.User
             ],
+            // 3. Gestion fine du Cache (Optimisation RAM)
+            makeCache: Options.cacheWithLimits({
+                ...Options.DefaultMakeCacheSettings,
+                MessageManager: 10, // On ne garde que les 10 derniers messages par canal
+                ThreadManager: 10,
+                PresenceManager: 0, // On ignore totalement les présences (jeu, statut)
+                ReactionManager: 0, // Les réactions sont traitées via Partials si besoin
+                GuildMemberManager: {
+                    maxSize: 100, // On ne cache que les membres actifs
+                    keepOverLimit: (member) => member.id === this.user?.id,
+                },
+            }),
+            // 4. Sweepers : Nettoyage automatique toutes les heures
+            sweepers: {
+                ...Options.DefaultSweeperSettings,
+                messages: {
+                    interval: 3600, // 1 heure
+                    lifetime: 1800, // Supprime les messages plus vieux que 30 mins
+                },
+                users: {
+                    interval: 3600,
+                    filter: () => (user) => user.id !== this.user?.id, // Ne pas auto-supprimer le bot
+                },
+            },
             presence: {
                 activities: [{
                     name: 'keep this empty',
@@ -64,49 +86,84 @@ class DiscordBot extends Client {
             }
         });
 
-        new CommandsListener(this);
-        new ComponentsListener(this);
+        // Initialisation de tes propriétés
+        this._initProperties();
+        
+        // Configuration Webhook Express
+        this._initWebhookServer();
+    }
 
+    _initProperties() {
+        this.collection = {
+            application_commands: new Collection(),
+            message_commands: new Collection(),
+            message_commands_aliases: new Collection(),
+            components: {
+                buttons: new Collection(),
+                selects: new Collection(),
+                modals: new Collection(),
+                autocomplete: new Collection()
+            }
+        };
+        this.rest_application_commands_array = [];
+        this.login_attempts = 0;
+        this.login_timestamp = 0;
+        this.statusMessages = [
+            { name: 'Monitoring Media', type: 4 },
+            { name: 'System Active', type: 4 },
+            { name: 'Ready for Webhooks', type: 4 }
+        ];
+
+        this.commands_handler = new CommandsHandler(this);
+        this.components_handler = new ComponentsHandler(this);
+        this.events_handler = new EventsHandler(this);
+        this.config = config;
         this.logger = logger;
+
+        // Initialise la DB
+        this.database = new QuickYAML(config.database_path);
+        // Initialise le gestionnaire de paramètres
+        this.settings = new SettingsManager(this, this.database);
+
+        // On instancie les services
+        this.overseerrService = new OverseerrService(this.config.apis.overseerr);
+        this.radarrService = new RadarrService(this.config.apis.radarr);
+        this.sonarrService = new SonarrService(this.config.apis.sonarr);
 
         this.translator = new TranslationManager({
             defaultLocale: 'fr',
-            fallbackLocale: 'en',
-            translationsDir: path.join(path.dirname(__dirname), '/translations'),
-            cacheEnabled: true,
-            autoReload: true, // Rechargement automatique des fichiers
-            logMissingTranslations: true,
-            strictMode: false, // true pour lever des erreurs sur les traductions manquantes
-            caseSensitive: true,
             logger: this.logger, // Logger personnalisé
         });
 
-        // Configuration du serveur webhook
+        new CommandsListener(this);
+        new ComponentsListener(this);
+    }
+
+    _initWebhookServer() {
         this.webhookServer = express();
         this.webhookServer.use(express.json());
-
-        // Routes webhook
         this.webhookServer.post("/webhook/:type", this.handleWebhook.bind(this));
-        this.webhookServer.get("/health/status", this.handleHealtchCheck.bind(this));
-
-        // APIs
-        this.overseerrService = new OverseerrService();
-        this.radarrService = new RadarrService();
-        this.sonarrService = new SonarrService();
+        this.webhookServer.get("/health/status", this.handleHealthCheck.bind(this));
     }
 
     async handleWebhook(req, res) {
         const { type } = req.params;
         const data = req.body;
 
-        // Logique du webhook, peut être déléguée à un gestionnaire dédié
-        this.logger.info(`Webhook [${type}] reçu : ${JSON.stringify(data)}`);
-        await handleWebhook(this, type, data);
+        // Log local
+        this.logger.info(`Webhook [${type}] reçu.`);
 
-        res.status(200).send({ message: "Webhook processed successfully" });
+        try {
+            // Traitement via ton handler (qui gère maintenant l'envoi et le log admin)
+            await handleWebhook(this, type, data);
+            res.status(200).send({ status: "success" });
+        } catch (error) {
+            this.logger.error(`Erreur lors du traitement du webhook ${type}:`, error);
+            res.status(500).send({ status: "error", message: error.message });
+        }
     }
 
-    async handleHealtchCheck(req, res) {
+    async handleHealthCheck(req, res) {
         res.status(200).send({ message: "Ok" });
     }
 
@@ -138,7 +195,6 @@ class DiscordBot extends Client {
             this.events_handler.load();
             this.startStatusRotation();
             this.startWebhookServer();
-            this.translator.preloadCache('fr');
 
             this.logger.warn('Attempting to register application commands... (this might take a while!)');
             await this.commands_handler.registerApplicationCommands(config.development);

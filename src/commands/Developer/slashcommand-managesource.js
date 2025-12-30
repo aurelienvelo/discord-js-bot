@@ -1,13 +1,14 @@
-const { ChatInputCommandInteraction, AttachmentBuilder } = require("discord.js");
-const DiscordBot = require("../../client/DiscordBot");
+const { ChatInputCommandInteraction, PermissionFlagsBits, ChannelType, MessageFlags } = require("discord.js");
 const ApplicationCommand = require("../../structure/ApplicationCommand");
-const config = require("../../config");
 
 module.exports = new ApplicationCommand({
     command: {
         name: 'managesource',
         description: 'Gérer l\'association d\'une source à un canal.',
         type: 1,
+        // On définit la permission par défaut (Gérer le serveur)
+        // Les botDevelopers passeront outre grâce à ton handler d'options
+        default_member_permissions: PermissionFlagsBits.ManageGuild.toString(),
         options: [
             {
                 name: 'action',
@@ -15,19 +16,13 @@ module.exports = new ApplicationCommand({
                 type: 3, // STRING
                 required: true,
                 choices: [
-                    {
-                        name: 'Associer',
-                        value: 'associate'
-                    },
-                    {
-                        name: 'Dissocier',
-                        value: 'dissociate'
-                    }
+                    { name: 'Associer', value: 'associate' },
+                    { name: 'Dissocier', value: 'dissociate' }
                 ]
             },
             {
                 name: 'source',
-                description: 'La source à gérer (ex: "github", "twitter").',
+                description: 'La source à gérer.',
                 type: 3, // STRING
                 required: true,
                 choices: [
@@ -39,94 +34,62 @@ module.exports = new ApplicationCommand({
             },
             {
                 name: 'channel',
-                description: 'Le canal où envoyer les notifications (requis pour l\'association).',
+                description: 'Le canal de destination (requis pour l\'association).',
                 type: 7, // CHANNEL
                 required: false,
-                channel_types: [0, 5] // GUILD_TEXT, GUILD_NEWS
+                channel_types: [ChannelType.GuildText, ChannelType.GuildAnnouncement]
             }
         ]
     },
     options: {
-        botDevelopers: true
+        botDevelopers: true 
     },
     /**
-     * 
-     * @param {DiscordBot} client 
-     * @param {ChatInputCommandInteraction} interaction 
+     * @param {import("../../client/DiscordBot")} client 
+     * @param {ChatInputCommandInteraction} interaction
      */
     run: async (client, interaction) => {
-        // Vérification du rôle autorisé
-        const member = interaction.member;
-
-        const authorizedRoleId = config.roles.admin;
-        if (!member.roles.cache.has(authorizedRoleId)) {
-            return interaction.reply({
-                content: `❌ Vous n'avez pas la permission d'utiliser cette commande.`,
-                ephemeral: true
-            });
-        }
-
-        // Récupération des options
         const action = interaction.options.getString('action');
         const source = interaction.options.getString('source');
         const channel = interaction.options.getChannel('channel');
+        const locale = interaction.locale; // Pour les traductions adaptées à l'utilisateur
 
-        if (!action || !source) {
-            return interaction.reply({
-                content: '❌ Veuillez spécifier une action et une source.',
-                ephemeral: true
-            });
-        }
-
-        // Récupération de l'ID du serveur
-        const guildId = interaction.guild.id;
-        const databaseKey = `webhook-${source}-${guildId}`;
-
-        // Logique en fonction de l'action
+        // 1. Logique d'Association
         if (action === 'associate') {
-            // Association : le canal est requis
             if (!channel) {
                 return interaction.reply({
-                    content: '❌ Veuillez spécifier un canal pour l\'association.',
-                    ephemeral: true
+                    content: client.translator.translate('messages.MISSING_CHANNEL', {}, locale) || "❌ Veuillez spécifier un canal.",
+                    flags: MessageFlags.Ephemeral
                 });
             }
 
-            // Récupération des associations existantes pour cette source
-            let sourceAssociations = client.database.get(`webhook-${source}`) || {};
-            
-            // Ajout/mise à jour de l'association pour ce serveur
-            sourceAssociations[guildId] = {
+            await client.settings.updateWebhookSource(source, interaction.guild.id, {
                 channelId: channel.id,
                 guildName: interaction.guild.name,
                 channelName: channel.name
-            };
+            });
 
-            client.database.set(`webhook-${source}`, sourceAssociations);
-            await interaction.reply(`✅ Source **${source}** associée au canal <#${channel.id}> sur ce serveur.`);
+            return interaction.reply({
+                content: `✅ Source **${source}** associée au canal <#${channel.id}>.`,
+                flags: MessageFlags.Ephemeral
+            });
+        }
 
-        } else if (action === 'dissociate') {
-            // Dissociation : vérifier si l'association existe
-            const sourceAssociations = client.database.get(`webhook-${source}`) || {};
-            
-            if (!sourceAssociations[guildId]) {
+        // 2. Logique de Dissociation
+        if (action === 'dissociate') {
+            const success = await client.settings.deleteWebhookSource(source, interaction.guild.id);
+
+            if (!success) {
                 return interaction.reply({
-                    content: `❌ Aucune association trouvée pour la source **${source}** sur ce serveur.`,
-                    ephemeral: true
+                    content: `❌ Aucune association trouvée pour **${source}** sur ce serveur.`,
+                    flags: MessageFlags.Ephemeral
                 });
             }
 
-            const removedChannel = sourceAssociations[guildId];
-            delete sourceAssociations[guildId];
-
-            // Si plus d'associations, supprimer complètement l'entrée
-            if (Object.keys(sourceAssociations).length === 0) {
-                client.database.delete(`webhook-${source}`);
-            } else {
-                client.database.set(`webhook-${source}`, sourceAssociations);
-            }
-
-            await interaction.reply(`✅ Source **${source}** dissociée du canal **${removedChannel.channelName}** sur ce serveur.`);
+            return interaction.reply({
+                content: `✅ Source **${source}** dissociée avec succès.`,
+                flags: MessageFlags.Ephemeral
+            });
         }
     }
 }).toJSON();

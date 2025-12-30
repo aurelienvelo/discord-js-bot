@@ -1,37 +1,41 @@
-# Étape 1 : Utilisation d'une image légère pour la construction
-FROM node:18-alpine AS builder
+# ÉTAPE 1 : Construction (Build)
+FROM node:20-alpine AS builder
 
-# Variables d'environnement pour une meilleure sécurité et performance
-ENV NODE_ENV=production
+# Installation des outils de build pour les dépendances natives (si besoin)
+RUN apk add --no-cache python3 make g++
 
-# Création du répertoire de l'application
 WORKDIR /app
 
-# Installation des dépendances
+# Copie uniquement les fichiers de dépendances pour profiter du cache Docker
 COPY package*.json ./
-RUN npm install --omit=dev
+RUN npm ci --only=production
 
-# Copie du code source
+# ÉTAPE 2 : Image Finale
+FROM node:20-alpine
+
+# Sécurité : Création d'un utilisateur non-root pour l'exécution
+RUN addgroup -S botgroup && adduser -S botuser -G botgroup
+
+WORKDIR /app
+
+# Copie des fichiers depuis l'étape de build
+COPY --from=builder /app/node_modules ./node_modules
 COPY . .
 
-# Étape 2 : Image finale minimaliste
-FROM node:18-alpine
+# Création du dossier data pour le volume PVC et gestion des permissions
+RUN mkdir -p /app/data && chown -R botuser:botgroup /app
 
-# Variables d'environnement
+# Utilisation de l'utilisateur non-root
+USER botuser
+
+# Variables d'environnement par défaut
 ENV NODE_ENV=production
+ENV DATABASE_PATH=/app/data/database.yml
 
-# Création du répertoire de l'application
-WORKDIR /app
-
-# Copie des fichiers nécessaires depuis l'étape de build
-COPY --from=builder /app .
-
-# Suppression des fichiers inutiles
-RUN apk add --no-cache tini \
-  && rm -rf /var/cache/apk/* /root/.npm /tmp/*
-
-# Exposition du port (si le bot offre une API ou une interface web)
+# Exposition du port utilisé par les webhooks
 EXPOSE 3000
 
-# Démarrer PM2 avec l'API activée
-ENTRYPOINT ["/sbin/tini", "--", "npm", "run", "start"]
+VOLUME [ "/app/data" ]
+
+# Commande de démarrage
+CMD ["node", "src/index.js"]

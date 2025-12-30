@@ -1,5 +1,3 @@
-const config = require("../config");
-
 class RadarrHandler {
     constructor() {
         this.eventTypeMap = {
@@ -209,7 +207,7 @@ class RadarrHandler {
      */
     async sendDebugMessage(client, eventType, payload) {
         try {
-            const adminChannelId = config.webhookChannels?.radarr?.admin;
+            const adminChannelId = client.config.webhookChannels?.radarr?.admin;
             if (!adminChannelId) return;
 
             const adminChannel = await client.channels.fetch(adminChannelId);

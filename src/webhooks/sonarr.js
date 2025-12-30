@@ -1,5 +1,3 @@
-const config = require("../config");
-
 class SonarrHandler {
     constructor() {
         this.eventTypeMap = {
@@ -316,7 +314,7 @@ class SonarrHandler {
      */
     async sendDebugMessage(client, eventType, payload) {
         try {
-            const adminChannelId = config.webhookChannels?.sonarr?.admin;
+            const adminChannelId = client.config.webhookChannels?.sonarr?.admin;
             if (!adminChannelId) return;
 
             const adminChannel = await client.channels.fetch(adminChannelId);

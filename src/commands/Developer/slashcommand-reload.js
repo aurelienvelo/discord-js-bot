@@ -1,7 +1,6 @@
 const { ChatInputCommandInteraction, AttachmentBuilder } = require("discord.js");
 const DiscordBot = require("../../client/DiscordBot");
 const ApplicationCommand = require("../../structure/ApplicationCommand");
-const config = require("../../config");
 
 module.exports = new ApplicationCommand({
     command: {
@@ -24,7 +23,7 @@ module.exports = new ApplicationCommand({
         try {
             client.commands_handler.reload();
 
-            await client.commands_handler.registerApplicationCommands(config.development);
+            await client.commands_handler.registerApplicationCommands(client.config.development);
 
             await interaction.editReply({
                 content: 'Successfully reloaded application commands and message commands.'

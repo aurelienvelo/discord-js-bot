@@ -1,11 +1,10 @@
 const ApiService = require("./apiService");
-const config = require("../config");
 
 class OverseerrService extends ApiService {
-    constructor() {
-        super(config.apis.overseerr.url, {
+    constructor(config) {
+        super(config.url, {
             "Content-Type": "application/json",
-            "X-Api-Key": config.apis.overseerr.token
+            "X-Api-Key": config.token
         });
     }
 
