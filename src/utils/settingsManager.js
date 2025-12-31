@@ -1,7 +1,34 @@
+const { QuickYAML } = require('quick-yaml.db');
+const fs = require('fs');
+const path = require('path');
+
 class SettingsManager {
-    constructor(client, database) {
+    constructor(client, dbPath) {
         this.client = client;
-        this.db = database;
+        this._initDatabase(dbPath);
+    }
+
+    _initDatabase(dbPath) {
+        const dbDir = path.dirname(dbPath);
+
+        try {
+            // 1. Créer le dossier s'il n'existe pas (nécessaire pour le montage de volume OCI)
+            if (!fs.existsSync(dbDir)) {
+                fs.mkdirSync(dbDir, { recursive: true });
+            }
+
+            // 2. Créer le fichier YAML s'il n'existe pas
+            if (!fs.existsSync(dbPath)) {
+                // "---" est le marqueur de début de document YAML
+                fs.writeFileSync(dbPath, "---\n", 'utf8');
+                client.logger.info(`[Database] Nouveau fichier YAML créé : ${dbPath}`);
+            }
+            // 3. Initialiser la connexion à la base de données YAML
+            this.db = new QuickYAML(dbPath);
+        } catch (error) {
+            client.logger.error(`[Database] Erreur d'initialisation : ${error.message}`);
+            process.exit(1); // On arrête le bot si la DB ne peut pas être chargée
+        }
     }
 
     /**

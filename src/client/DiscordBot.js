@@ -7,7 +7,6 @@ const CommandsListener = require("./handler/CommandsListener");
 const ComponentsHandler = require("./handler/ComponentsHandler");
 const ComponentsListener = require("./handler/ComponentsListener");
 const EventsHandler = require("./handler/EventsHandler");
-const { QuickYAML } = require('quick-yaml.db');
 const { handleWebhook } = require('../webhooks');
 const TranslationManager = require('../utils/translationManager');
 const SettingsManager = require('../utils/settingsManager');
@@ -120,10 +119,8 @@ class DiscordBot extends Client {
         this.config = config;
         this.logger = logger;
 
-        // Initialise la DB
-        this.database = new QuickYAML(config.database_path);
         // Initialise le gestionnaire de paramètres
-        this.settings = new SettingsManager(this, this.database);
+        this.settings = new SettingsManager(this, this.config.database_path);
 
         // On instancie les services
         this.overseerrService = new OverseerrService(this.config.apis.overseerr);
