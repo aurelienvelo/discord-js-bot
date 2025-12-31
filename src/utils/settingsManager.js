@@ -21,12 +21,12 @@ class SettingsManager {
             if (!fs.existsSync(dbPath)) {
                 // "---" est le marqueur de début de document YAML
                 fs.writeFileSync(dbPath, "---\n", 'utf8');
-                client.logger.info(`[Database] Nouveau fichier YAML créé : ${dbPath}`);
+                this.client.logger.info(`[Database] Nouveau fichier YAML créé : ${dbPath}`);
             }
             // 3. Initialiser la connexion à la base de données YAML
             this.db = new QuickYAML(dbPath);
         } catch (error) {
-            client.logger.error(`[Database] Erreur d'initialisation : ${error.message}`);
+            this.client.logger.error(`[Database] Erreur d'initialisation : ${error.message}`);
             process.exit(1); // On arrête le bot si la DB ne peut pas être chargée
         }
     }
